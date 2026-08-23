@@ -74,8 +74,6 @@ class Consequences {
 	Set<Cell> _freedCells = <>       // Cells freed (we moved there, now walkable)
 	Set<Cell> _movedTargetCells = <> // Cells vacated by a repel: aiming there is now stale
 
-	// Movement candidate (set after Action construction for swap/attract/push scoring)
-	MovementCandidate? movementCandidate = null
 
 	// ════════════════════════════════════════════════════════════════════════
 	// EFFECT VALUE TRACKING

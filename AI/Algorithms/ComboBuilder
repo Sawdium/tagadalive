@@ -578,8 +578,7 @@ class ComboBuilder {
 
 		// Score handling differs: inversion adds candidate.score, repotting doesn't
 		if (useScoreBonus) {
-			actualizedSwap.consequences.score += candidate.score
-			actualizedSwap.score = actualizedSwap.consequences.getScore()
+			ComboBuilder._applyTacticalBonus(actualizedSwap, candidate.score)
 			if (actualizedSwap.score! <= priorCsq.score!) return null
 		}
 
@@ -737,8 +736,7 @@ class ComboBuilder {
 		moveAction.overrideTargets = <candidate.target>
 
 		Action actualizedMove = Action(moveAction, priorCsq)
-		actualizedMove.consequences.score += candidate.score
-		actualizedMove.score = actualizedMove.consequences.getScore()
+		ComboBuilder._applyTacticalBonus(actualizedMove, candidate.score)
 
 		if (actualizedMove.score! <= priorCsq.score!) return null
 		push(combo.actions, actualizedMove)
@@ -840,6 +838,11 @@ class ComboBuilder {
 		boxingAction.overrideTargets = <candidate.target>
 
 		Action actualizedBoxing = Action(boxingAction, priorCsq)
+		// The whole combo's tactical value rides on boxingMC (the grapple/inversion
+		// candidates above carry 0 on purpose). Without this the combo is scored on the
+		// incidental damage of a grapple and a glove, i.e. nothing, and can never win.
+		// No improvement gate here: this path pushes unconditionally today.
+		ComboBuilder._applyTacticalBonus(actualizedBoxing, boxingMC.score)
 		push(combo.actions, actualizedBoxing)
 		usesThisTurn[boxingItem] = 1
 
@@ -966,6 +969,11 @@ class ComboBuilder {
 		boxingAction.overrideTargets = <candidate.target>
 
 		Action actualizedBoxing = Action(boxingAction, priorCsq)
+		// The whole combo's tactical value rides on boxingMC (the grapple/inversion
+		// candidates above carry 0 on purpose). Without this the combo is scored on the
+		// incidental damage of a grapple and a glove, i.e. nothing, and can never win.
+		// No improvement gate here: this path pushes unconditionally today.
+		ComboBuilder._applyTacticalBonus(actualizedBoxing, boxingMC.score)
 		push(combo.actions, actualizedBoxing)
 		usesThisTurn[boxingItem] = 1
 
@@ -2577,6 +2585,22 @@ class ComboBuilder {
 	/*
 	 * Unique key for action (for deduplication)
 	 */
+	/*
+	 * Apply a MovementCandidate's tactical value to an actualized action.
+	 *
+	 * This has to be done here rather than in the EFFECT_INVERT / EFFECT_PUSH /
+	 * EFFECT_ATTRACT handlers. Those run inside Consequences' per-target loop, which skips
+	 * a target that is already killed, fails the effect mask, is dying to poison, or - the
+	 * one that matters - is an INVINCIBLE enemy (Consequences:356). Scoring the swap from
+	 * inside that loop would silently drop the whole tactical value for invincible targets,
+	 * which are exactly the ones worth inverting. Applying it here is unconditional.
+	 */
+	static void _applyTacticalBonus(Action actualized, real bonus) {
+		if (bonus == 0) return;
+		actualized.consequences.score += bonus
+		actualized.score = actualized.consequences.getScore()
+	}
+
 	static integer actionKey(Action a) {
 		return a.item.id * 10000000 + a.from.id * 10000 + a.to.id
 	}

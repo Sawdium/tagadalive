@@ -174,9 +174,12 @@ Multi-cell combos exist but execute ALL actions per cell before moving. True int
 ## Reference: Unscored Effects
 
 ### Movement Effects
-~~`EFFECT_INVERT`~~ — **now scored** via `movementCandidate` pre-computed score + position tracking.
-~~`EFFECT_PUSH`~~ — **now scored** via `movementCandidate` pre-computed score.
-~~`EFFECT_ATTRACT`~~ — **now scored** via `movementCandidate` pre-computed score.
+~~`EFFECT_INVERT`~~, ~~`EFFECT_PUSH`~~, ~~`EFFECT_ATTRACT`~~ — **now scored**, but NOT in their
+effect handlers: `ComboBuilder._applyTacticalBonus` applies the pre-computed
+`MovementCandidate` score to the actualized action. It cannot live in the handlers, which
+run inside the per-target loop that skips invincible enemies (`Consequences:356`). The
+handlers carry position tracking only. Target-position tracking after a push/attract is
+still missing (see `applyRepel`'s `_movedTargetCells` for the pattern).
 ~~`EFFECT_REPEL`~~ — **now scored** in `Consequences.applyRepel`: whole-shot simulation
 (nearest-first victim order, mutable occupancy), positional delta only via
 `MapTactical.getRepelMoveScore`. Crit distance (5 instead of 4) is still unmodelled.

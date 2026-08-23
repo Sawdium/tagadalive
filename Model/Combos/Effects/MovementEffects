@@ -1,18 +1,23 @@
 /**
  * MovementEffects - Handlers for movement-related effects
- * 
+ *
  * Handles: EFFECT_TELEPORT, EFFECT_INVERT, EFFECT_PUSH, EFFECT_ATTRACT,
  *          EFFECT_REPEL, EFFECT_SUMMON, EFFECT_RESURRECT
- * 
- * NOTE: These effects are currently not scored as they would need
- * position simulation. They are registered as empty handlers to avoid
- * "unhandled effect" warnings.
- * 
- * TODO: Implement position simulation for proper scoring of these effects.
- * See improvement axis #5 in the codebase analysis.
+ *
+ * Where the displacement SCORE lives, and why it is not here:
+ *  - INVERT / PUSH / ATTRACT: applied by ComboBuilder._applyTacticalBonus from the
+ *    pre-computed MovementCandidate. It cannot live in these handlers, because they run
+ *    inside Consequences' per-target loop which skips invincible enemies, already-killed
+ *    targets and poison-doomed ones - dropping the tactical value exactly where it counts.
+ *  - REPEL: Consequences.applyRepel, intercepted before the per-target loop because victim
+ *    order and mutable occupancy decide the outcome.
+ * These handlers therefore carry position tracking only. SUMMON and RESURRECT do score
+ * here, since they have no such per-target hazard.
+ *
+ * TODO: EFFECT_TELEPORT is still genuinely unscored.
  */
 
-// Register all movement effect handlers (empty - not scored yet)
+// Register all movement effect handlers
 Consequences.registerHandlers([
 	EFFECT_TELEPORT: (ItemEffect effect, Entity entitySource, Entity entityTarget, real ratioDmg, Consequences conseq) => void {
 		// Would need: MapPosition.evaluatePositionChange(from, to) for teleport value
@@ -26,30 +31,19 @@ Consequences.registerHandlers([
 		conseq.addNewObstacle(conseq.currentCell)
 		conseq.addFreedCell(entityTarget.cell)
 		conseq.currentCell = entityTarget.cell
-
-		// Score from pre-computed candidate (ally damage delta + vulnerability impact)
-		// This is the full tactical value of the position swap
-		if (conseq.movementCandidate != null) {
-			conseq.score += conseq.movementCandidate.score
-		}
+		// Score: see the header. Applied by ComboBuilder._applyTacticalBonus, not here.
 	},
 
 	EFFECT_PUSH: (ItemEffect effect, Entity entitySource, Entity entityTarget, real ratioDmg, Consequences conseq) => void {
-		// Pushes target away from caster
-		// Track target's new position and add score from pre-computed candidate
-		if (conseq.movementCandidate != null) {
-			conseq.score += conseq.movementCandidate.score
-			// TODO: Track target position change for subsequent action planning
-		}
+		// Score: see the header. Applied by ComboBuilder._applyTacticalBonus, not here.
+		// TODO: Track target position change for subsequent action planning, the way
+		// applyRepel does with _movedTargetCells.
 	},
 
 	EFFECT_ATTRACT: (ItemEffect effect, Entity entitySource, Entity entityTarget, real ratioDmg, Consequences conseq) => void {
-		// Pulls target toward caster
-		// Track target's new position and add score from pre-computed candidate
-		if (conseq.movementCandidate != null) {
-			conseq.score += conseq.movementCandidate.score
-			// TODO: Track target position change for subsequent action planning
-		}
+		// Score: see the header. Applied by ComboBuilder._applyTacticalBonus, not here.
+		// TODO: Track target position change for subsequent action planning, the way
+		// applyRepel does with _movedTargetCells.
 	},
 
 	EFFECT_REPEL: (ItemEffect effect, Entity entitySource, Entity entityTarget, real ratioDmg, Consequences conseq) => void {

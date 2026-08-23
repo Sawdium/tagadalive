@@ -1156,8 +1156,15 @@ class MapTactical {
 	 * line really do get repelled).
 	 *
 	 * Deliberately carries NO damage term - the shot's own damage belongs to the DAMAGE
-	 * effect. Note the existing glove path adds candidate.score AND scores the real
-	 * post-move attacks, which double counts; this does not replicate that.
+	 * effect, and getDamageBeforeEnemy excludes self (MapDamage:338), so this measures only
+	 * what TEAMMATES gain or lose by the target standing somewhere else. The two never
+	 * overlap.
+	 *
+	 * KNOWN GAP: because self is excluded, a solo leek with no allies playing before the
+	 * target scores every displacement at exactly 0. In 1v1 the repel is therefore
+	 * invisible to the scoring, even though shoving an enemy out of reach is worth
+	 * something. Capturing that needs our own next-turn reach, or the enemy's threat to
+	 * us, neither of which this function looks at.
 	 */
 	static real getRepelMoveScore(Entity target, Cell from, Cell to) {
 		integer key = from.id * 1000 + to.id
