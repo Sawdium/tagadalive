@@ -1155,16 +1155,25 @@ class MapTactical {
 	 * enemies, danger delta for allies (the sun spear's mask is 31, so allies in the laser
 	 * line really do get repelled).
 	 *
-	 * Deliberately carries NO damage term - the shot's own damage belongs to the DAMAGE
-	 * effect, and getDamageBeforeEnemy excludes self (MapDamage:338), so this measures only
-	 * what TEAMMATES gain or lose by the target standing somewhere else. The two never
-	 * overlap.
+	 * Carries NO damage term, and that is the contract, not an omission. It scores only the
+	 * part of a displacement that is real WITHIN THIS ROUND and not already counted
+	 * elsewhere:
+	 *  - self is excluded (getDamageBeforeEnemy -> MapDamage:338) because our own attacks
+	 *    are scored directly as actions in the combo; counting our reach again would double
+	 *    count;
+	 *  - only allies who play BEFORE the target count, because an ally acting after it will
+	 *    meet it wherever it repositions on its own turn, so scoring them against the pushed
+	 *    cell would assert a position that no longer holds.
 	 *
-	 * KNOWN GAP: because self is excluded, a solo leek with no allies playing before the
-	 * target scores every displacement at exactly 0. In 1v1 the repel is therefore
-	 * invisible to the scoring, even though shoving an enemy out of reach is worth
-	 * something. Capturing that needs our own next-turn reach, or the enemy's threat to
-	 * us, neither of which this function looks at.
+	 * Two consequences follow and are expected, so do not "fix" them here. Solo, the score
+	 * is identically 0 (measured: 50/50 evaluations) - with nobody acting between our shot
+	 * and the enemy's turn, nothing about the displaced position is still true when it
+	 * could matter, and there is no lookahead by design. And in team fights the score is
+	 * usually NEGATIVE (measured 2v2: 78% zero, median -260 on the rest), because pushing
+	 * an enemy away from teammates who are about to act genuinely costs the team damage.
+	 *
+	 * The value of shoving an enemy out of ITS reach is a danger-model question, not a
+	 * displacement-scoring one, and belongs there.
 	 */
 	static real getRepelMoveScore(Entity target, Cell from, Cell to) {
 		integer key = from.id * 1000 + to.id
