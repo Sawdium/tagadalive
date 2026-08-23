@@ -26,23 +26,46 @@ Improvements, refactoring, and cleanup for the LeekScript combat AI.
 
 - [ ] **Extract life ratio constants in ScoringModifiers** — magic numbers (10/5 ally, 15/10 enemy) still hardcoded
 
-### 1.5 Fix Dead Code: CANDIE_MODIFIER Never Applied in Static Mode
+### 1.5 CANDIE ally boost only ever reaches mid-turn summons
 
-- [ ] **CANDIE_MODIFIER is dead code when DYNAMIC_COEFS=false (default)** — `Scoring:212-217`
+- [ ] **The `isOtherAlly` canDie boost never applies to ally leeks** — `Scoring:248-252`
 
-The `canDie()` check inside `_computeDynamicCoef()` reads `BattleState.allyDanger[entity]` (line 132), but `allyDanger` is always empty at the time the cache is built. Here's why:
+Corrected 2026-08-23. The previous entry claimed `CANDIE_MODIFIER` was dead code
+in static mode. It is not: perturbing it changes the fight, and perturbing that
+branch alone changes it too. The real defect is narrower and stranger.
 
-1. `Scoring.refresh()` calls `BattleState.refresh()` (line 35) which clears `allyDanger = [:]` (BattleState:95)
-2. `Scoring.refresh()` then builds `_cache_dynamic_coef` (lines 86-92) by calling `_computeDynamicCoef()` for every entity
-3. `_computeDynamicCoef()` calls `canDie()` which reads `allyDanger[entity]` → always null → returns false
-4. `BattleState.computeAllAllyDanger()` populates `allyDanger` and sets `entity.canDie` **after** `Scoring.refresh()` (auto:193 vs auto:180)
+`Scoring.refresh()` caches every entity from `Fight.getAllAlive()` while
+`BattleState.allyDanger` is still empty (it was just cleared by
+`BattleState.refresh()`, and `computeAllAllyDanger()` does not run until
+`auto:211`). So for every entity alive at turn start, `canDie()` reads null and
+returns false, and the boost is skipped.
 
-**Result**: `base *= ScoringConfig.CANDIE_MODIFIER` (5.0) never executes in static mode. The `entity.canDie` flag IS set later and used by other systems (ComboExplorer, ComboBuilder, MapTactical), but the coefficient boost is dead.
+But `getDynamicCoef()` (`Scoring:148-150`) lazily caches any entity missing from
+the map:
+
+```
+// If entity not in cache (e.g., just-summoned bulb), add it
+if (_cache_dynamic_coef[entity] == null) { _addEntityToCache(entity) }
+```
+
+By then `allyDanger` IS populated, so `canDie()` works. **The net effect: the
+ally-in-danger boost applies only to entities summoned after `Scoring.refresh()`
+ran this turn — bulbs — and never to ally leeks, who are always present at turn
+start.** Verified empirically: replacing the multiplier on that branch alone
+changes 212 marker lines in a single Claudios/Claudius fight.
+
+`CANDIE_MODIFIER` itself has three call sites and is live at all of them:
+`Scoring:206` (self at <= SELF_CRITICAL_HP_RATIO of max HP), `Scoring:251` (the
+branch above), and `EntityCoefs:176` (PotiMalef boss only, self, RELSHIELD).
 
 **Fix options**:
 - A) Move `computeAllAllyDanger()` before `Scoring.refresh()` (requires MapDanger to also move before, may be costly)
 - B) After `computeAllAllyDanger()`, re-patch the cached coefs for allies where `canDie=true`
-- C) Switch to `DYNAMIC_COEFS=true` (accurate but ~4x slower)
+- C) Switch to `DYNAMIC_COEFS=true` (accurate but ~4x slower — not available, several builds run within 1-3% of their op budget)
+
+**Decide before any weight tuning.** The constant is shared between "I might die"
+and "my ally might die", so a tuner fits it to whichever paths are reachable; if
+this is fixed afterwards the fitted value silently acquires a second meaning.
 
 ---
 
