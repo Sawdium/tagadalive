@@ -71,9 +71,12 @@ class Entity {
 	boolean isFennelKing = false // Fennel King boss: main boss (boosted TP/MP shackle coefs)
 	boolean isEvilPumpkin = false // PotiMalef boss: pumpkin (boosted relshield coefs)
 	boolean hasCovid = false     // Has COVID effect active (propagates to nearby entities)
-	// Summon chips excluding resurrection: how much summoning STERILE would deny.
-	// Cached once (extendedType pattern) - read per scored action.
+	// Summon chips excluding resurrection. Static (items never change), informational:
+	// the scoring uses summonPotential below.
 	integer summonChipCount = 0
+	// The same chips weighted by remaining cooldown, i.e. how many STERILE would ACTUALLY
+	// lock rather than how many are owned. Refreshed every turn in _loadCooldowns().
+	real summonPotential = 0.0
 	integer antidoteCD = 5       // CHIP_ANTIDOTE cooldown (5 = no antidote chip, 0-4 = current cd)
 	integer nextAntidote = 5     // Turns until enemy team can antidote this entity (0-5, set by MapDanger)
 	integer liberationCD = 6     // CHIP_LIBERATION cooldown (6 = no liberation chip, 0-5 = current cd)
@@ -264,7 +267,14 @@ class Entity {
 	 * Called by constructor and refreshState().
 	 */
 	void _loadCooldowns() {
+		this.summonPotential = 0.0
 		for (Item item in this.items) {
+			// STERILE denies only what could have been cast inside its 2-turn window, so
+			// weight each summon chip by how soon it comes off cooldown. Resurrection is
+			// excluded: the generator's resurrectEntity() ignores the state entirely.
+			if (item.isSummon && item.id != CHIP_RESURRECTION) {
+				this.summonPotential += ScoringConfig.getSummonLockWeight(getCooldown(item.id, this.id)!)
+			}
 			switch (item.id) {
 				case CHIP_ANTIDOTE: this.antidoteCD = getCooldown(item.id, this.id)!; break;
 				case CHIP_LIBERATION: this.liberationCD = getCooldown(item.id, this.id)!; break;

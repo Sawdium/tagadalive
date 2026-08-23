@@ -382,8 +382,10 @@ EffectCache.registerHandlers([
 		if (effect.min != STATE_STERILE) return;
 		if (entityTarget.isFriend) return;          // saber mask is 31: allies can be hit
 		if (entityTarget.isSterile) return;         // never stacks, refresh buys ~nothing
-		if (entityTarget.summonChipCount == 0) return;
-		snap.effectScore += ScoringConfig.STERILE_VALUE * entityTarget.summonChipCount
+		// summonPotential, not summonChipCount: a chip still on a long cooldown comes
+		// back only after the state expires, so it is not actually denied anything.
+		if (entityTarget.summonPotential <= 0) return;
+		snap.effectScore += ScoringConfig.STERILE_VALUE * entityTarget.summonPotential
 	}
 ])
 
