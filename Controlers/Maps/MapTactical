@@ -1632,6 +1632,20 @@ class MapTactical {
 	 * @param includeAllySupport If true, add support actions for swapped ally
 	 * @return Array of actions playable from new position
 	 */
+	/*
+	 * Displacement staleness is handled by REGENERATION, not by filtering.
+	 *
+	 * After a swap/pull/push the enemy is somewhere else, so any action still aimed at its
+	 * old cell would fire on empty ground - Combo.play executes at fixed planned cells. The
+	 * fix is that this pool (and getPostMovePool) rebuild every candidate action against the
+	 * post-displacement positions, and no tactical builder ever falls back to the generic
+	 * pool afterwards (_greedyFallback is only reached from the non-tactical paths).
+	 *
+	 * A Consequences.invalidatedActions set once existed to filter stale actions instead. It
+	 * was never populated, so it guarded nothing, and it was removed. Do not rebuild it:
+	 * regenerate the pool. The one case regeneration cannot cover is EFFECT_REPEL, which
+	 * displaces several entities mid-action - that one uses Consequences._movedTargetCells.
+	 */
 	static Array<Action> getPostSwapPool(
 		Entity swapTarget,
 		Cell newSelfCell,

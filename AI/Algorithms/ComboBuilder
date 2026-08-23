@@ -2541,9 +2541,6 @@ class ComboBuilder {
 		// Get current state
 		Consequences csq = combo.getCurrentConsequences()
 
-		// Check if action was invalidated by inversion (targets moved)
-		if (csq.invalidatedActions != null && setContains(csq.invalidatedActions!, action)) return false
-
 		// A repel vacated cells and blocked others, and Combo.play fires every action at its
 		// fixed planned cell. Anything aimed at a vacated cell would hit empty ground, and any
 		// area or laser action might still be counting a body that has moved. Single-target

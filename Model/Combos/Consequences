@@ -66,9 +66,6 @@ class Consequences {
 	// Pending resurrection from resurrection action in this consequence chain
 	Map<Cell, PendingResurrect> pendingResurrect = [:]
 
-	// Actions invalidated by inversion (targets moved, would hit self now)
-	Set<Action>? invalidatedActions = null
-
 	// Position swap tracking for inversion (COW - reference parent, clone on write)
 	Set<Cell> _newObstacles = <>    // Cells blocked by swapped entities
 	Set<Cell> _freedCells = <>       // Cells freed (we moved there, now walkable)
@@ -181,9 +178,6 @@ class Consequences {
 				this._psnPerTurn[e] = v
 			}
 		}
-
-		// Propagate invalidated actions through chain (set once, persists)
-		this.invalidatedActions = consequences.invalidatedActions
 
 		// Propagate position swap data (reference - clone on write)
 		this._newObstacles = consequences._newObstacles
