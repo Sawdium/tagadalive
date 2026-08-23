@@ -177,14 +177,19 @@ Multi-cell combos exist but execute ALL actions per cell before moving. True int
 ~~`EFFECT_INVERT`~~ — **now scored** via `movementCandidate` pre-computed score + position tracking.
 ~~`EFFECT_PUSH`~~ — **now scored** via `movementCandidate` pre-computed score.
 ~~`EFFECT_ATTRACT`~~ — **now scored** via `movementCandidate` pre-computed score.
-`EFFECT_TELEPORT`, `EFFECT_REPEL` — still unscored (empty handlers).
+~~`EFFECT_REPEL`~~ — **now scored** in `Consequences.applyRepel`: whole-shot simulation
+(nearest-first victim order, mutable occupancy), positional delta only via
+`MapTactical.getRepelMoveScore`. Crit distance (5 instead of 4) is still unmodelled.
+`EFFECT_TELEPORT` — still unscored (empty handler).
 
 ### Summoning Effects
 ~~`EFFECT_SUMMON`~~ — **now scored** via `EffectHandlers.summon()` (level-based bulb value).
 ~~`EFFECT_RESURRECT`~~ — **now scored** via `ScoringConfig.RESURRECT_VALUE` + dynamic modifiers (commits 89e015f, 7814079).
 
 ### State Effects
-`EFFECT_ADD_STATE` (stunned, etc.) — not evaluated. Map state → value (stunned = enemy avg turn damage).
+`EFFECT_ADD_STATE` — only `STATE_STERILE` is scored (`ScoringConfig.STERILE_VALUE` ×
+`Entity.summonPotential`, cooldown-weighted). The other states are still unevaluated;
+map state → value (stunned = enemy avg turn damage).
 
 ---
 

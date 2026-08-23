@@ -53,7 +53,13 @@ Consequences.registerHandlers([
 	},
 
 	EFFECT_REPEL: (ItemEffect effect, Entity entitySource, Entity entityTarget, real ratioDmg, Consequences conseq) => void {
-		// Repels target away
+		// DEAD ON PURPOSE - do not add scoring here, it would never run and, if the
+		// interception below were ever removed, would double count.
+		// Consequences intercepts EFFECT_REPEL before the per-target loop and calls
+		// applyRepel() instead, because victim ORDER and mutable occupancy decide the
+		// outcome: a near victim blocked by a far one that has not moved yet stays
+		// blocked. That cannot be expressed one target at a time. Kept registered so the
+		// effect is not reported as unhandled.
 	},
 
 	EFFECT_SUMMON: (ItemEffect effect, Entity entitySource, Entity entityTarget, real ratioDmg, Consequences conseq) => void {

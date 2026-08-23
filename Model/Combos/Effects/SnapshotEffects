@@ -320,7 +320,12 @@ EffectCache.registerHandlers([
 	},
 
 	EFFECT_REPEL: (ItemEffect effect, Entity entitySource, Entity entityTarget, real ratioDmg, EffectSnapshot snap) => void {
-		// No stat change in snapshot
+		// No stat change, and the displacement is deliberately NOT scored here.
+		// getOrComputeLaser caches on (itemId, targetsHash) and computeTargetsHash sorts
+		// entity ids only, so the same victims hit from opposite directions share a cache
+		// entry - a direction-dependent score would be silently wrong. Snapshot handlers
+		// also get no cast cell, so they cannot derive the repel direction at all.
+		// Scored in Consequences.applyRepel instead.
 	},
 
 	EFFECT_SUMMON: (ItemEffect effect, Entity entitySource, Entity entityTarget, real ratioDmg, EffectSnapshot snap) => void {
