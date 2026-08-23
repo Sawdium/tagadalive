@@ -526,7 +526,7 @@ class MapTactical {
 				if (destCell == null) continue
 				if (destCell.id == entity.cell.id) continue  // No movement
 
-				// Score the pull (score added via movementCandidate in ComboBuilder)
+				// Score the pull (applied by ComboBuilder._applyTacticalBonus)
 				real score = _scoreAttract(entity, entity.cell, destCell, grappleItem)
 
 				// Keep best scoring candidate
@@ -606,7 +606,7 @@ class MapTactical {
 				// Check LOS to destination is clear (entity is on the line, will be pushed)
 				if (!_checkLOS(castFrom, destCell, entity, null, null)) continue
 
-				// Score the push (score added via movementCandidate in ComboBuilder)
+				// Score the push (applied by ComboBuilder._applyTacticalBonus)
 				real score = _scorePush(entity, entity.cell, destCell, boxingItem)
 
 				// Keep best scoring candidate
@@ -746,7 +746,7 @@ class MapTactical {
 				// Check boxing LOS to destination is clear (enemy at afterGrapple after pull)
 				if (!_checkLOS(boxingFrom, finalDest, enemy, afterGrapple, null)) continue
 
-				// Score the combo (score added via movementCandidate in ComboBuilder)
+				// Score the combo (applied by ComboBuilder._applyTacticalBonus)
 				real score = _scoreAttractPushCombo(enemy, enemy.cell, finalDest)
 
 				// Keep best (highest score, or same score with lower MP)
@@ -795,7 +795,7 @@ class MapTactical {
 	 */
 	static real _scoreAttractPushCombo(Entity enemy, Cell originalCell, Cell finalCell) {
 		// Score based on damage potential at each position
-		// No consequences here - proper consequences handled when Action executes via movementCandidate
+		// No consequences here - proper consequences handled when the Action is actualized
 		real dmgAtOriginal = MapDamage.getDamageBeforeEnemy(originalCell, enemy, null)
 		real dmgAtFinal = MapDamage.getDamageBeforeEnemy(finalCell, enemy, null)
 		real dmgDelta = dmgAtFinal - dmgAtOriginal
@@ -896,7 +896,7 @@ class MapTactical {
 			// Check boxing LOS to destination is clear (enemy at enemyPosAfterInv after inversion)
 			if (!_checkLOS(pushFromCell, finalDest, enemy, enemyPosAfterInv, null)) continue
 
-			// Score the combo (score added via movementCandidate in ComboBuilder)
+			// Score the combo (applied by ComboBuilder._applyTacticalBonus)
 			real score = _scoreAttractPushCombo(enemy, enemy.cell, finalDest)
 
 			// Only keep combos with positive score (actual benefit)

@@ -571,10 +571,11 @@ class ComboBuilder {
 		Consequences priorCsq = combo.getCurrentConsequences()
 		if (priorCsq.currentMP < mpToCast) return null
 
-		Action swapAction = Action(swapItem, castCell, candidate.targetCell)
-		swapAction.movementCandidate = candidate
-
-		Action actualizedSwap = Action(swapAction, priorCsq)
+		// Chain straight onto priorCsq. The old two-step built a standalone Action first,
+		// paying a full Consequences construct() (Targets.getTargets against the live board)
+		// only to throw it away. That was needed while movementCandidate had to be set
+		// between the two constructions; nothing is set between them any more.
+		Action actualizedSwap = Action(swapItem, castCell, candidate.targetCell, priorCsq, true)
 
 		// Score handling differs: inversion adds candidate.score, repotting doesn't
 		if (useScoreBonus) {
@@ -732,7 +733,6 @@ class ComboBuilder {
 		// 1. Move action (grapple/push) - we end up at castCell
 		Consequences priorCsq = combo.getCurrentConsequences()
 		Action moveAction = Action(moveItem, castCell, candidate.targetNewCell)
-		moveAction.movementCandidate = candidate
 		moveAction.overrideTargets = <candidate.target>
 
 		Action actualizedMove = Action(moveAction, priorCsq)
@@ -811,11 +811,8 @@ class ComboBuilder {
 		// LOS to enemy is validated in MapTactical candidate generation
 		Consequences priorCsq = combo.getCurrentConsequences()
 		Action grappleAction = Action(grappleItem, candidate.grappleFromCell, candidate.afterGrappleCell)
-		// Create MovementCandidate for grapple (score=0, combo score goes on boxing)
-		MovementCandidate grappleMC = MovementCandidate.forAttract(
-			grappleItem, candidate.grappleFromCell, candidate.target,
-			candidate.afterGrappleCell, 0, 0)  // MP already accounted, score on boxing
-		grappleAction.movementCandidate = grappleMC
+		// No tactical bonus on the grapple: the whole combo's value goes on the boxing
+		// action below, so a candidate here would carry 0.
 		grappleAction.overrideTargets = <candidate.target>
 
 		Action actualizedGrapple = Action(grappleAction, priorCsq)
@@ -830,11 +827,6 @@ class ComboBuilder {
 		priorCsq.currentMP = remainingMP  // transitionMP already deducted in comboMPCost
 
 		Action boxingAction = Action(boxingItem, candidate.boxingFromCell, candidate.finalCell)
-		// Create MovementCandidate for boxing with the combo score
-		MovementCandidate boxingMC = MovementCandidate.forPush(
-			boxingItem, candidate.boxingFromCell, candidate.target,
-			candidate.finalCell, 0, candidate.score)  // Full combo score here
-		boxingAction.movementCandidate = boxingMC
 		boxingAction.overrideTargets = <candidate.target>
 
 		Action actualizedBoxing = Action(boxingAction, priorCsq)
@@ -842,7 +834,7 @@ class ComboBuilder {
 		// candidates above carry 0 on purpose). Without this the combo is scored on the
 		// incidental damage of a grapple and a glove, i.e. nothing, and can never win.
 		// No improvement gate here: this path pushes unconditionally today.
-		ComboBuilder._applyTacticalBonus(actualizedBoxing, boxingMC.score)
+		ComboBuilder._applyTacticalBonus(actualizedBoxing, candidate.score)
 		push(combo.actions, actualizedBoxing)
 		usesThisTurn[boxingItem] = 1
 
@@ -929,11 +921,7 @@ class ComboBuilder {
 		// LOS to enemy is validated in MapTactical candidate generation
 		Consequences priorCsq = combo.getCurrentConsequences()
 		Action grappleAction = Action(grappleItem, candidate.grappleFromCell, candidate.afterGrappleCell)
-		// Create MovementCandidate for grapple (score=0, combo score goes on boxing)
-		MovementCandidate grappleMC = MovementCandidate.forAttract(
-			grappleItem, candidate.grappleFromCell, candidate.target,
-			candidate.afterGrappleCell, 0, 0)
-		grappleAction.movementCandidate = grappleMC
+		// No tactical bonus on the grapple: value goes on the boxing action below.
 		grappleAction.overrideTargets = <candidate.target>
 
 		Action actualizedGrapple = Action(grappleAction, priorCsq)
@@ -943,10 +931,7 @@ class ComboBuilder {
 		// 2. Inversion action (swap with enemy at afterGrappleCell)
 		priorCsq = combo.getCurrentConsequences()
 		Action inversionAction = Action(inversionItem, candidate.grappleFromCell, candidate.afterGrappleCell)
-		// Create MovementCandidate for inversion (score=0, combo score goes on boxing)
-		MovementCandidate invMC = MovementCandidate.forInversion(
-			inversionItem, candidate.grappleFromCell, candidate.target, 0, 0)
-		inversionAction.movementCandidate = invMC
+		// No tactical bonus on the inversion: value goes on the boxing action below.
 		inversionAction.overrideTargets = <candidate.target>
 
 		Action actualizedInv = Action(inversionAction, priorCsq)
@@ -961,11 +946,6 @@ class ComboBuilder {
 		priorCsq.currentMP = remainingMP  // transitionMP already deducted in comboMPCost
 
 		Action boxingAction = Action(boxingItem, candidate.pushFromCell, candidate.finalCell)
-		// Create MovementCandidate for boxing with the combo score
-		MovementCandidate boxingMC = MovementCandidate.forPush(
-			boxingItem, candidate.pushFromCell, candidate.target,
-			candidate.finalCell, 0, candidate.score)  // Full combo score here
-		boxingAction.movementCandidate = boxingMC
 		boxingAction.overrideTargets = <candidate.target>
 
 		Action actualizedBoxing = Action(boxingAction, priorCsq)
@@ -973,7 +953,7 @@ class ComboBuilder {
 		// candidates above carry 0 on purpose). Without this the combo is scored on the
 		// incidental damage of a grapple and a glove, i.e. nothing, and can never win.
 		// No improvement gate here: this path pushes unconditionally today.
-		ComboBuilder._applyTacticalBonus(actualizedBoxing, boxingMC.score)
+		ComboBuilder._applyTacticalBonus(actualizedBoxing, candidate.score)
 		push(combo.actions, actualizedBoxing)
 		usesThisTurn[boxingItem] = 1
 
@@ -2546,6 +2526,13 @@ class ComboBuilder {
 		// area or laser action might still be counting a body that has moved. Single-target
 		// attacks on enemies who did NOT move stay legal - that is what the greedy fallback
 		// needs in multi-enemy fights, since only the laser line was displaced.
+		//
+		// Residual, accepted: a repelled body travels along our own ray and lands further
+		// out on it, so it can newly break line of sight to a target sitting on that SAME
+		// ray beyond it. Everything on the ray within the laser's reach was already a
+		// victim, so the exposed case is a single-target shot at an enemy past that reach.
+		// Narrow, and it costs a wasted shot rather than a crash. Catching it would need a
+		// per-action LoS recompute here, on a hot path.
 		if (setSize(csq._movedTargetCells) > 0) {
 			if (setContains(csq._movedTargetCells, action.to)) return false
 			if (action.item.isAOE || action.item.area == AREA_LASER_LINE) return false
