@@ -63,9 +63,14 @@ branch above), and `EntityCoefs:176` (PotiMalef boss only, self, RELSHIELD).
 - B) After `computeAllAllyDanger()`, re-patch the cached coefs for allies where `canDie=true`
 - C) Switch to `DYNAMIC_COEFS=true` (accurate but ~4x slower — not available, several builds run within 1-3% of their op budget)
 
-**Decide before any weight tuning.** The constant is shared between "I might die"
-and "my ally might die", so a tuner fits it to whichever paths are reachable; if
-this is fixed afterwards the fitted value silently acquires a second meaning.
+**Decide before any weight tuning** (see [../ml/TODO.md](../ml/TODO.md)). The
+sharing problem is gone — `CANDIE_MODIFIER` was split into
+`SELF_CRITICAL_MODIFIER`, `ALLY_CANDIE_MODIFIER` and
+`EC_POTIMALEF_SELF_RELSHIELD_MULT` (same values, no behaviour change), so each
+call site is now tunable on its own. What remains is the reachability defect
+above: a tuner fitting `ALLY_CANDIE_MODIFIER` today only ever sees the
+bulb path, so the value it lands on is fitted to summons. Fix the ordering
+first, or the fitted number quietly changes meaning the day it is fixed.
 
 ---
 
