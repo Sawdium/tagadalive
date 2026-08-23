@@ -21,8 +21,8 @@ class BattleState {
 	static boolean enemyHasSnc = false // any enemy has SNC >= 200 (for dmgReturn value)
 	static boolean enemyHasOTK = false // any enemy has STR >= 400, AGI >= 400, SNC >= 400
 	static boolean enemyHasHighAgi = false // any enemy has AGI >= 800 (bramble value in OTK)
-	static boolean allyHasStr = false  // any ally has STR >= 100 (for vuln value)
-	static boolean allyHasScience = false // any ally has SNC >= 200 (for rel vuln value)
+	static boolean allyHasStr = false  // any ally has STR >= 200 (for vuln value)
+	static boolean allyHasScience = false // any ally has SNC >= 400. Read only by getTeamCompModifier; see getShieldStatusModifier on why science does not gate shield-stripping
 	static boolean allyHasPsn = false  // any ally has MGC >= 100 (for enemy antidote map)
 	static boolean allyHasRst = false  // any ally has RST >= 100 (for enemy liberation map)
 	static real allyLeekMeanStr = 0.0 // mean STR of ally leeks (for enemy vuln scaling)
