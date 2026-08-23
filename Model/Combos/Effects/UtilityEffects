@@ -58,8 +58,8 @@ Consequences.registerHandlers([
 		// Never stacks (the generator replaces rather than merges ADD_STATE), so a refresh
 		// on an already-sterile target buys almost nothing.
 		if (entityTarget.isSterile) return;
-		// summonPotential, not summonChipCount: a chip still on a long cooldown comes
-		// back only after the state expires, so it is not actually denied anything.
+		// Cooldown-weighted: a chip that only comes back after the state expires is not
+		// actually denied anything, so it contributes nothing.
 		if (entityTarget.summonPotential <= 0) return;
 		conseq.score += ScoringConfig.STERILE_VALUE * entityTarget.summonPotential
 	}

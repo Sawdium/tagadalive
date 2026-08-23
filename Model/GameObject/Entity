@@ -71,11 +71,9 @@ class Entity {
 	boolean isFennelKing = false // Fennel King boss: main boss (boosted TP/MP shackle coefs)
 	boolean isEvilPumpkin = false // PotiMalef boss: pumpkin (boosted relshield coefs)
 	boolean hasCovid = false     // Has COVID effect active (propagates to nearby entities)
-	// Summon chips excluding resurrection. Static (items never change), informational:
-	// the scoring uses summonPotential below.
-	integer summonChipCount = 0
-	// The same chips weighted by remaining cooldown, i.e. how many STERILE would ACTUALLY
-	// lock rather than how many are owned. Refreshed every turn in _loadCooldowns().
+	// Summon chips (excluding resurrection) weighted by remaining cooldown: how many
+	// STERILE would ACTUALLY lock, rather than how many are owned. Refreshed every turn
+	// in _loadCooldowns().
 	real summonPotential = 0.0
 	integer antidoteCD = 5       // CHIP_ANTIDOTE cooldown (5 = no antidote chip, 0-4 = current cd)
 	integer nextAntidote = 5     // Turns until enemy team can antidote this entity (0-5, set by MapDanger)
@@ -144,12 +142,6 @@ class Entity {
 				push(filtered, item)
 			}
 			this.items = filtered
-		}
-		// STERILE blocks the generator's State.summon() but NOT resurrectEntity(), which
-		// carries no such check - and Item.isSummon is true for EFFECT_RESURRECT too, so
-		// resurrection has to be excluded explicitly.
-		for (Item item in this.items) {
-			if (item.isSummon && item.id != CHIP_RESURRECTION) this.summonChipCount++
 		}
 		this._loadCooldowns()
 		if (this.teleportItem != null) MapPath._teleportMaxRange = this.teleportItem.maxRange
