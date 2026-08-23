@@ -50,11 +50,15 @@ Consequences.registerHandlers([
 	},
 
 	EFFECT_ADD_STATE: (ItemEffect effect, Entity entitySource, Entity entityTarget, real ratioDmg, Consequences conseq) => void {
-		// Applies special states (stunned, burning, etc.)
-		// States have various effects:
-		// - stunned = skip turn
-		// - burning = DoT
-		// - etc.
-		// TODO: proper state tracking - would need state->effect mapping
+		// Only STERILE is scored so far. effect.min is value1 = the state id; effect.avg
+		// would be (12+0)/2 = 6, which is MAGNETIZED - a different state entirely.
+		if (effect.min != STATE_STERILE) return;
+		// The saber's target mask is 31 (everyone), so allies really can be hit.
+		if (entityTarget.isFriend) return;
+		// Never stacks (the generator replaces rather than merges ADD_STATE), so a refresh
+		// on an already-sterile target buys almost nothing.
+		if (entityTarget.isSterile) return;
+		if (entityTarget.summonChipCount == 0) return;
+		conseq.score += ScoringConfig.STERILE_VALUE * entityTarget.summonChipCount
 	}
 ])

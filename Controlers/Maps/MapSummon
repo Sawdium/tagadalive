@@ -97,6 +97,13 @@ class MapSummon {
 
 		integer summonerLevel = Fight.self.level
 
+		// Placement analysis is pure waste while sterile - nothing can be summoned.
+		if (Fight.self.isSterile) {
+			_opsUsed = getOperations() - startOps
+			Benchmark.stop("MapSummon")
+			return;
+		}
+
 		// Process each summon chip the player has
 		for (Item item in Fight.self.items) {
 			if (!item.isSummon) continue

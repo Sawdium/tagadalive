@@ -160,7 +160,7 @@ class Fight {
 				neutrinoReady = true
 				neutrinoItem = item
 			}
-			if (item.isSummon && getCooldown(item.id, self.id) == 0 && self.tp >= item.cost) {
+			if (item.isSummon && !self.isSterile && getCooldown(item.id, self.id) == 0 && self.tp >= item.cost) {
 				canSummon = true
 			}
 		}

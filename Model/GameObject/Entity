@@ -65,11 +65,15 @@ class Entity {
 	boolean isBulb
 	boolean isStatic = false     // ADD_STATE value 11 - no STATE_STATIC constant in leekwars api
 	boolean isInvincible = false // ADD_STATE value STATE_INVINCIBLE (3)
+	boolean isSterile = false    // ADD_STATE value STATE_STERILE (12) - cannot summon
 	boolean isCrystal = false    // Fennel King boss: crystal that must NOT be damaged
 	boolean isGraal = false      // Fennel King boss: graal that must NOT be moved
 	boolean isFennelKing = false // Fennel King boss: main boss (boosted TP/MP shackle coefs)
 	boolean isEvilPumpkin = false // PotiMalef boss: pumpkin (boosted relshield coefs)
 	boolean hasCovid = false     // Has COVID effect active (propagates to nearby entities)
+	// Summon chips excluding resurrection: how much summoning STERILE would deny.
+	// Cached once (extendedType pattern) - read per scored action.
+	integer summonChipCount = 0
 	integer antidoteCD = 5       // CHIP_ANTIDOTE cooldown (5 = no antidote chip, 0-4 = current cd)
 	integer nextAntidote = 5     // Turns until enemy team can antidote this entity (0-5, set by MapDanger)
 	integer liberationCD = 6     // CHIP_LIBERATION cooldown (6 = no liberation chip, 0-5 = current cd)
@@ -137,6 +141,12 @@ class Entity {
 				push(filtered, item)
 			}
 			this.items = filtered
+		}
+		// STERILE blocks the generator's State.summon() but NOT resurrectEntity(), which
+		// carries no such check - and Item.isSummon is true for EFFECT_RESURRECT too, so
+		// resurrection has to be excluded explicitly.
+		for (Item item in this.items) {
+			if (item.isSummon && item.id != CHIP_RESURRECTION) this.summonChipCount++
 		}
 		this._loadCooldowns()
 		if (this.teleportItem != null) MapPath._teleportMaxRange = this.teleportItem.maxRange
@@ -233,6 +243,7 @@ class Entity {
 		this.altMP = 0
 		this.isStatic = false
 		this.isInvincible = false
+		this.isSterile = false
 		this.hasCovid = false
 		this.antidoteCD = 5
 		this.liberationCD = 6
@@ -279,6 +290,7 @@ class Entity {
 			// ADD_STATE: set flags, don't add to effects (can't be liberated)
 			if(effect.type == EFFECT_ADD_STATE) {
 				if(effect.value == STATE_INVINCIBLE) this.isInvincible = true
+				else if(effect.value == STATE_STERILE) this.isSterile = true
 				else if(effect.value == 11) this.isStatic = true // no STATE_STATIC constant in leekwars api
 				continue
 			}

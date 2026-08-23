@@ -73,6 +73,10 @@ class MapAction {
 
 			// Handle summon chips: use MapSummon's best target cells, find fromCells like other items
 			if (item.isSummon) {
+				// STERILE makes the generator's State.summon() return USE_FAILED. Resurrection
+				// is NOT blocked (resurrectEntity has no such check) and is handled by the
+				// branch above, which already continued, so this only drops real summons.
+				if (Fight.self.isSterile) continue
 				// William: summons planned only as delayed self-summons (BossDalton)
 				if (BossDalton.handleSummonPlanning(item)) continue
 
