@@ -24,6 +24,7 @@ class Item {
 	boolean targetEmptyCell = false
 	boolean isSummon = false
 	boolean isTactical = false
+	boolean movesTargets = false // Displaces its targets (EFFECT_REPEL): later actions go stale
 	boolean isOffensive = false  // Can deal damage/debuff to enemies (O(1) check)
 	boolean isDamage = false     // Has EFFECT_DAMAGE or EFFECT_LIFE_DAMAGE
 	boolean hasAllyKill = false  // Has EFFECT_KILL targeting own summons (burning)
@@ -148,6 +149,8 @@ class Item {
 		WEAPON_ODACHI: 17,
 		WEAPON_EXCALIBUR: 17,
 		WEAPON_SCYTHE: 17,
+		WEAPON_DESERT_SABER: 17,     // Damage + STERILE rider; the state gates the
+		                             // ENEMY's turn, so it constrains nothing in ours
 		CHIP_FLASH: 17,
 		CHIP_PUNISHMENT: 17,
 		CHIP_PLASMA: 17,
@@ -204,6 +207,12 @@ class Item {
 		413: 40, // unknown fire_ball
 		414: 40, // unknown trebuchet
 		416: 40, // unknown thunder
+		// Displacement last: EFFECT_REPEL moves its targets, and Combo.play fires every
+		// action at a FIXED planned cell. Anything enemy-targeted sequenced after a repel
+		// would whiff on a cell the enemy left. Band 41 is above movement (39) and boss
+		// chips (40); within-band ties break on score DESC, so sharing 39 would sort this
+		// high-scoring weapon AHEAD of jump/teleportation.
+		WEAPON_SUN_SPEAR: 41,
 	]
 			
 	constructor(integer id) {
@@ -263,6 +272,12 @@ class Item {
 				e.type == EFFECT_PUSH ||
 				e.type == EFFECT_ATTRACT) {
 				this.isTactical = true
+			}
+			// Deliberately NOT isTactical: that flag means "MapAction skips it, MapTactical
+			// owns it" (MapAction:144 + isOffensive below). The sun spear is a damage weapon
+			// and must stay in the normal pipeline; only its displacement needs handling.
+			if (e.type == EFFECT_REPEL) {
+				this.movesTargets = true
 			}
 			if (e.type == EFFECT_DAMAGE || e.type == EFFECT_LIFE_DAMAGE) {
 				this.isDamage = true
