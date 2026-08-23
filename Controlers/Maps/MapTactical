@@ -141,6 +141,7 @@ class MapTactical {
 		_attractPushByTargetId = [:]
 		_pullInvPushCombos = []
 		_pullInvPushByTargetId = [:]
+		_repelScoreCache = [:]
 
 		// Compute team barycentres
 		_allyBarycentre = _computeBarycentre(Fight.getAlliesAlive())
@@ -1137,6 +1138,40 @@ class MapTactical {
 		} else {
 			return _scoreMoveAlly(target, oldCell, newCell)
 		}
+	}
+
+	/*
+	 * Repel move scores, entityId -> (fromCell * 1000 + toCell) -> score. Cleared each turn.
+	 *
+	 * A repel resolves to at most a handful of (victim, from, to) triples per turn, but the
+	 * handler runs once per chained Consequences instantiation - thousands of times. Without
+	 * this the two getDamageBeforeEnemy calls inside _scoreMoveEnemy would dominate.
+	 * Cell ids are bounded by 612, so from * 1000 + to is collision-free.
+	 */
+	static Map<integer, Map<integer, real>> _repelScoreCache = [:]
+
+	/*
+	 * Score one repel displacement. Same basis the boxing glove uses: damage delta for
+	 * enemies, danger delta for allies (the sun spear's mask is 31, so allies in the laser
+	 * line really do get repelled).
+	 *
+	 * Deliberately carries NO damage term - the shot's own damage belongs to the DAMAGE
+	 * effect. Note the existing glove path adds candidate.score AND scores the real
+	 * post-move attacks, which double counts; this does not replicate that.
+	 */
+	static real getRepelMoveScore(Entity target, Cell from, Cell to) {
+		integer key = from.id * 1000 + to.id
+		if (MapTactical._repelScoreCache[target.id] == null) {
+			MapTactical._repelScoreCache[target.id] = [:]
+		}
+		real? cached = MapTactical._repelScoreCache[target.id]![key]
+		if (cached != null) return cached
+
+		real score = target.isFriend
+			? MapTactical._scoreMoveAlly(target, from, to)
+			: MapTactical._scoreMoveEnemy(target, from, to, null)
+		MapTactical._repelScoreCache[target.id]![key] = score
+		return score
 	}
 
 	/*

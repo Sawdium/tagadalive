@@ -2536,6 +2536,16 @@ class ComboBuilder {
 		// Check if action was invalidated by inversion (targets moved)
 		if (csq.invalidatedActions != null && setContains(csq.invalidatedActions!, action)) return false
 
+		// A repel vacated cells and blocked others, and Combo.play fires every action at its
+		// fixed planned cell. Anything aimed at a vacated cell would hit empty ground, and any
+		// area or laser action might still be counting a body that has moved. Single-target
+		// attacks on enemies who did NOT move stay legal - that is what the greedy fallback
+		// needs in multi-enemy fights, since only the laser line was displaced.
+		if (setSize(csq._movedTargetCells) > 0) {
+			if (setContains(csq._movedTargetCells, action.to)) return false
+			if (action.item.isAOE || action.item.area == AREA_LASER_LINE) return false
+		}
+
 		// Check TP (including weapon switch cost + reserved TP)
 		integer switchCost = (action.item.isWeap && (csq.currentWeapon == null || action.item.id != csq.currentWeapon!.id)) ? 1 : 0
 		if (csq.currentTP < action.item.cost + switchCost + reserveTP) return false

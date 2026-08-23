@@ -72,6 +72,7 @@ class Consequences {
 	// Position swap tracking for inversion (COW - reference parent, clone on write)
 	Set<Cell> _newObstacles = <>    // Cells blocked by swapped entities
 	Set<Cell> _freedCells = <>       // Cells freed (we moved there, now walkable)
+	Set<Cell> _movedTargetCells = <> // Cells vacated by a repel: aiming there is now stale
 
 	// Movement candidate (set after Action construction for swap/attract/push scoring)
 	MovementCandidate? movementCandidate = null
@@ -189,6 +190,7 @@ class Consequences {
 		// Propagate position swap data (reference - clone on write)
 		this._newObstacles = consequences._newObstacles
 		this._freedCells = consequences._freedCells
+		this._movedTargetCells = consequences._movedTargetCells
 
 		construct(action, true)  // Warn during combo building (catches actual bugs)
 		Benchmark.stop("Consequences.fromConseq")
@@ -331,6 +333,13 @@ class Consequences {
 						)
 					}
 				}
+				continue
+			}
+
+			// Whole-shot simulation: victim ORDER and mutable occupancy both matter, so this
+			// cannot go through the per-target loop below.
+			if (effect.type == EFFECT_REPEL) {
+				this.applyRepel(effect, action)
 				continue
 			}
 
@@ -835,6 +844,112 @@ class Consequences {
 		if (setContains(this._freedCells, cell)) return;
 		this._freedCells = clone(this._freedCells) as Set<Cell>
 		setPut(this._freedCells, cell)
+	}
+
+	/*
+	 * Simulate EFFECT_REPEL for a whole shot and score the displacements.
+	 *
+	 * Mirrors the generator exactly: Attack.applyOnCell's repel branch, plus
+	 * Map.getRepelLastAvailableCell and State.slideEntity.
+	 *
+	 *  - Victims are processed in AREA order, which for a laser is NEAREST FIRST:
+	 *    AreaLaserLine walks minRange -> maxRange outward from the caster.
+	 *  - The board is mutated between victims (slideEntity calls map.moveEntity right away,
+	 *    and Cell.available checks live occupancy). So a near victim blocked by a far one
+	 *    that has NOT moved yet stays blocked, even after that one leaves. A packed line
+	 *    barely moves: enemies at distance 1/2/3/4 with repel 4 give 0/0/0/4 cells of
+	 *    travel, not 4/4/4/4. Scoring victims independently overestimates every one of them.
+	 *  - Each victim slides one cell at a time, up to `distance`, away from the CASTER,
+	 *    stopping at the first wall, map edge or occupied cell. No collision damage.
+	 *  - Victims killed by this shot's damage are skipped AND their cell counts as free,
+	 *    because State.onPlayerDie calls map.removeEntity before the repel branch runs.
+	 *  - STATE_STATIC entities never move (State.slideEntity early-returns).
+	 *
+	 * Only the positional delta is scored. The shot's own damage was already scored by the
+	 * DAMAGE effect that ran before this one, so there is no double count.
+	 *
+	 * Crit is not modelled: a critical repels round(4 * 1.3) = 5 cells, off the same single
+	 * crit roll as the damage. Consistent with how crits are ignored elsewhere.
+	 */
+	void applyRepel(ItemEffect effect, Action action) {
+		// value1 = distance. NEVER effect.avg: that is (4+0)/2 = 2 here.
+		integer distance = effect.min as integer
+		if (distance <= 0) return;
+
+		Cell casterCell = this.currentCell
+
+		// Direction, mirroring AreaLaserLine: strict row/column alignment or no area at all
+		integer dx = 0
+		integer dy = 0
+		if (action.to.x == casterCell.x) {
+			if (action.to.y == casterCell.y) return;
+			dy = action.to.y > casterCell.y ? 1 : -1
+		} else if (action.to.y == casterCell.y) {
+			dx = action.to.x > casterCell.x ? 1 : -1
+		} else return;
+
+		// Live occupancy view, mutated as victims move - exactly like the generator's map.
+		Map<Cell, boolean> occupied = [:]
+		for (Cell c : Entity e in Board.entityCells) {
+			if (this.isKilled(e)) continue
+			occupied[c] = true
+		}
+		// Fold in displacements this chain already made (inversion, earlier repel)
+		for (Cell c in this._freedCells) occupied[c] = false
+		for (Cell c in this._newObstacles) occupied[c] = true
+		// We are wherever the chain moved us, not where the real board says we are
+		occupied[Fight.self.cell] = false
+		occupied[casterCell] = true
+
+		for (integer i = action.item.minRange; i <= action.item.maxRange; i++) {
+			Map<integer, Cell>? col = Board.cellsXY[casterCell.x + dx * i]
+			if (col == null) break
+			Cell? cell = col[casterCell.y + dy * i]
+			if (cell == null) break
+			// LoS weapon: the laser line itself stops at a wall (entities do not block it)
+			if (action.item.needLOS && cell.isWall) break
+
+			Entity? occupant = Board.entityCells[cell]
+			if (occupant == null) continue
+			Entity victim = occupant
+			if (victim == Fight.self) continue      // the generator skips the caster
+			if (this.isKilled(victim)) continue     // killed by this same shot's damage
+			if (victim.isStatic) continue           // slideEntity refuses to move it
+
+			Cell from = cell
+			Cell dest = from
+			for (integer step = 0; step < distance; step++) {
+				Map<integer, Cell>? ncol = Board.cellsXY[dest.x + dx]
+				if (ncol == null) break
+				Cell? next = ncol[dest.y + dy]
+				if (next == null) break
+				if (next.isWall || occupied[next]) break
+				dest = next
+			}
+			if (dest == from) continue              // fully blocked: no move, nothing to score
+
+			occupied[from] = false
+			occupied[dest] = true
+
+			this.score += MapTactical.getRepelMoveScore(victim, from, dest)
+
+			// Keep our own pathfinding honest for the rest of the combo: the body left one
+			// cell and now blocks another, and _addFinalPosition runs after this.
+			this.addFreedCell(from)
+			this.addNewObstacle(dest)
+			this.addMovedTargetCell(from)
+		}
+	}
+
+	/*
+	 * Record a cell whose occupant was displaced by a repel (COW - clones on first write).
+	 * Actions still aimed at it would fire on an empty cell, because Combo.play executes
+	 * every action at its fixed planned cell id.
+	 */
+	void addMovedTargetCell(Cell cell) {
+		if (setContains(this._movedTargetCells, cell)) return;
+		this._movedTargetCells = clone(this._movedTargetCells) as Set<Cell>
+		setPut(this._movedTargetCells, cell)
 	}
 
 	/*
