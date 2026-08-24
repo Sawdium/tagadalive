@@ -30,7 +30,7 @@ class MapDanger {
 	static Map<Entity, Map<Cell, real>> _map_enemy_antidote = [:]
 
 	// Enemy liberation coverage: for each enemy with liberation cd <= 1, which cells they can reach
-	// Only populated when BattleState.allyHasRst is true
+	// Only populated when BattleState.allyHasShield is true
 	static Map<Entity, Map<Cell, real>> _map_enemy_liberation = [:]
 
 	// Per-turn danger cost stats: itemName → dims → [totalOps, count]
@@ -83,7 +83,7 @@ class MapDanger {
 		integer maxEnemyItems = 0
 		for(Entity e in enemies){
 			// Liberator benefits from own liberation (casts it first, then attacks)
-			if (e.liberationCD <= 1 && effectiveRel > ScoringConfig.LIBE_RELSHIELD_TRIGGER) {
+			if (e.liberationCD <= 1 && ScoringConfig.libeWorthCasting(effectiveAbs, effectiveRel)) {
 				effectiveAbs = (effectiveAbs * ScoringConfig.LIBE_DEBUFF_FACTOR) as integer
 				effectiveRel = (effectiveRel * ScoringConfig.LIBE_DEBUFF_FACTOR) as integer
 			}
@@ -132,8 +132,8 @@ class MapDanger {
 				e.willBeDead = e.psnlife <= 0 && e.nextAntidote >= 1
 			}
 		}
-		// Build enemy liberation maps (only when enemies have STR and allies have RST)
-		if (BattleState.enemyHasStr && BattleState.allyHasRst) {
+		// Build enemy liberation maps (only when enemies have STR and we have shields to lose)
+		if (BattleState.enemyHasStr && BattleState.allyHasShield) {
 			MapDanger._buildEnemyCoverageMaps(CHIP_LIBERATION, (Entity e) => integer { return e.liberationCD }, _map_enemy_liberation)
 			MapDanger._computeEnemyNextChipTurn(6, (Entity e) => integer { return e.liberationCD }, _map_enemy_liberation, (Entity t, integer v) => void { t.nextLiberation = v })
 		}

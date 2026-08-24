@@ -89,7 +89,7 @@ class Damages {
 				}
 
 				// Simulate enemy liberation stripping our shields
-				if (relShield > ScoringConfig.LIBE_RELSHIELD_TRIGGER && e.liberationCD <= 1) {
+				if (ScoringConfig.libeWorthCasting(absShield, relShield) && e.liberationCD <= 1) {
 					Map<Cell, real>? libeMap = MapDanger._map_enemy_liberation[e]
 					if (libeMap != null && libeMap[cell] != null) {
 						for (Item item in e.items) {

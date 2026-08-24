@@ -24,7 +24,8 @@ class BattleState {
 	static boolean allyHasStr = false  // any ally has STR >= 200 (for vuln value)
 	static boolean allyHasScience = false // any ally has SNC >= 400. Read only by getTeamCompModifier; see getShieldStatusModifier on why science does not gate shield-stripping
 	static boolean allyHasPsn = false  // any ally has MGC >= 100 (for enemy antidote map)
-	static boolean allyHasRst = false  // any ally has RST >= 100 (for enemy liberation map)
+	static boolean allyHasShield = false // any ally carries shields, or holds a shield chip
+	                                     // ready to raise them (for enemy liberation map)
 	static real allyLeekMeanStr = 0.0 // mean STR of ally leeks (for enemy vuln scaling)
 
 	// === Global State Ratios ===
@@ -67,7 +68,7 @@ class BattleState {
 		allyHasStr = false
 		allyHasScience = false
 		allyHasPsn = false
-		allyHasRst = false
+		allyHasShield = false
 		allyLeekMeanStr = 0
 		enemyHasStr = false
 		enemyHasMgc = false
@@ -110,11 +111,6 @@ class BattleState {
 			if (!allyHasPsn && entity.mgc >= 200) {
 				allyHasPsn = true
 			}
-			// Check for ally with significant resistance (for enemy liberation map)
-			if (!allyHasRst && entity.rst >= 200) {
-				allyHasRst = true
-			}
-
 			// Count WSD/RST/AGI chips for this ally
 			integer entityId = entity.id
 			real wsdCount = 0.0
@@ -147,6 +143,16 @@ class BattleState {
 			wsdReadyChips[entityId] = wsdCount
 			rstReadyChips[entityId] = rstCount
 			agiReadyChips[entityId] = agiCount
+
+			// Shields come from chips as much as from the RST stat, so key the enemy
+			// liberation map on shields that exist -- or on a shield chip ready to
+			// raise them. The chip half matters: refresh() runs before our combo, so
+			// on the turn we shield up the fields still read 0 while computeDanger
+			// already sees the shield through its consequences.
+			if (!allyHasShield && (entity.absShield > 0 || entity.relShield > 0
+					|| rstCount > 0)) {
+				allyHasShield = true
+			}
 
 			// For leeks only: compute ratios, maxHP range, and mean STR
 			if (!entity.isBulb) {
