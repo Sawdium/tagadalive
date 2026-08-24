@@ -17,6 +17,20 @@ if (getMP() <= 0 || (getTotalTP() - getTP()) >= 10) {
 // Initialize game state
 init()
 
+// Texel probe (Benchmark.DEBUG_TUNE, off in the shipped AI): the state at the
+// moment we are asked to move, before any action. One entry per living
+// entity, side +1 ally / -1 enemy, max TP/MP rather than what is left.
+if (Benchmark.DEBUG_TUNE) {
+	string txl = "TXL|" + getTurn() + "|" + Fight.self.id
+	for (Entity e in Fight.getAllAlive()) {
+		txl += "|" + e.id + ":" + (e.isFriend ? 1 : -1) + ":" + (e.isBulb ? 1 : 0)
+			+ ":" + e.life + ":" + e.totalLife + ":" + e.absShield + ":" + e.relShield
+			+ ":" + e.dmgReturn + ":" + e.str + ":" + e.mgc + ":" + e.snc + ":" + e.rst
+			+ ":" + e.wsd + ":" + e.agi + ":" + getTotalTP(e.id) + ":" + getTotalMP(e.id)
+	}
+	debug(txl)
+}
+
 // Mark boss resurrection cell
 integer? resuCell = BossPotiMalef.getResurrectionCell()
 if (resuCell != null) mark(resuCell, getColor(255, 0, 255))
