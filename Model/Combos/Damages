@@ -67,6 +67,11 @@ class Damages {
 				if (MapDanger._map_entity_item_danger[e] == null) continue
 
 				integer tpLeft = e.getCurrentTP(consequences)
+				// Adrenaline: 1 TP in, 5 TP out, so a net +4 the worst case has to
+				// assume it takes. CD is decremented at the start of the round, so
+				// <= 1 means available on the turn this enemy is about to play
+				// (same convention as getOrderedOffensiveItems' limitCD for enemies).
+				if (e.adrenalineCD <= 1) tpLeft += 4
 				boolean jumpCharged = false
 				integer jumpCost = (e.jumpItem != null) ? e.jumpItem!.cost : 0
 				boolean teleportCharged = false
