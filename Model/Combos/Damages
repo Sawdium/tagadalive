@@ -77,7 +77,6 @@ class Damages {
 				boolean teleportCharged = false
 				integer teleportCost = (e.teleportItem != null) ? e.teleportItem!.cost : 0
 				real critFactor = e.isOTK ? CRITICAL_FACTOR : 1.0
-				real effectiveRel = e.isOTK ? relShield - 25 : relShield
 
 				// MP shackle: cache outside item loop (before liberation sim mutates tpLeft)
 				// Applies when manumission is on CD, or unaffordable because enemy is TP-locked
@@ -105,6 +104,11 @@ class Damages {
 						}
 					}
 				}
+
+				// Snapshot AFTER the liberation sim: the damage formula below reads
+				// absShield live, so taking relShield before the strip would credit the
+				// liberator with halving one shield and not the other.
+				real effectiveRel = e.isOTK ? relShield - 25 : relShield
 
 				// Entity stats are constant across e's item loop (consequences is only read)
 				integer eStr = e.getCurrentStr(consequences)
